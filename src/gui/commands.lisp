@@ -109,12 +109,12 @@
                 (dolist (f files)
                   (when (audio-file-p f)
                     (let ((track (make-track-from-file (namestring f))))
-                      (add-playlist-element playlist track)
+                      (setf (add-playlist-element playlist 0) track)
                       (incf added)))))
               ;; Add single file
               (when (probe-file path)
                 (let ((track (make-track-from-file (namestring path))))
-                  (add-playlist-element playlist track)
+                  (setf (add-playlist-element playlist 0) track)
                   (incf added))))
           (setf (frame-message frame)
                 (format nil "Added ~D track~:P" added)))
@@ -140,9 +140,7 @@
     (loop
       (format stream "~&~%Directory: ~A~%" (namestring dir))
       (format stream "---~%")
-      ;; List parent
       (format stream "  [..] Parent directory~%")
-      ;; List subdirectories
       (let ((subdirs (sort (uiop:subdirectories dir)
                            #'string< :key #'namestring))
             (files (sort (remove-if-not #'audio-file-p (uiop:directory-files dir))
@@ -154,31 +152,53 @@
             (push (cons idx (cons :dir d)) choices)
             (format stream "  [~D] ~A/~%" idx name)
             (incf idx)))
-        ;; List audio files
         (dolist (f files)
           (push (cons idx (cons :file f)) choices)
           (format stream "  [~D] ~A~%" idx (file-namestring f))
           (incf idx))
         (format stream "---~%")
         (format stream "  [a] Add ALL audio files from this directory~%")
+        (format stream "  [s] Save playlist~%")
         (format stream "  [q] Done browsing~%")
         (let ((input (clim:accept 'string
                                   :prompt "Choice"
                                   :stream stream)))
           (cond
-            ((string-equal input "q") (return))
+            ((string-equal input "q")
+             (return))
+            ((string-equal input "s")
+             (let ((filepath (frame-filepath frame)))
+               (cond
+                 ((null filepath)
+                  (format stream "  No file path -- use Save As from the File menu.~%"))
+                 (t
+                  (handler-case
+                      (progn
+                        (write-m3u-file playlist filepath)
+                        (format stream "  Saved ~A~%" (file-namestring filepath))
+                        (setf (frame-message frame)
+                              (format nil "Saved ~A" (file-namestring filepath)))
+                        (clim:redisplay-frame-pane frame (clim:find-pane-named frame 'status) :force-p t))
+                    (error (e)
+                      (format stream "  Save error: ~A~%" e)))))))
             ((string-equal input "..")
              (let ((parent (uiop:pathname-parent-directory-pathname dir)))
                (when parent (setf dir parent))))
             ((string-equal input "a")
              (let ((added 0))
                (dolist (f files)
-                 (let ((track (make-track-from-file (namestring f))))
-                   (add-playlist-element playlist track)
-                   (incf added)))
+                 (handler-case
+                     (let ((track (make-track-from-file (namestring f))))
+                       (setf (add-playlist-element playlist 0) track)
+                       (incf added))
+                   (error (e)
+                     (format stream "  Skipped ~A: ~A~%" (file-namestring f) e))))
                (setf (frame-message frame)
                      (format nil "Added ~D track~:P from ~A"
-                             added (first (last (pathname-directory dir)))))))
+                             added (first (last (pathname-directory dir)))))
+               (format stream "  Added ~D track~:P.~%" added)
+               (clim:redisplay-frame-pane frame (clim:find-pane-named frame 'tracklist) :force-p t)
+               (clim:redisplay-frame-pane frame (clim:find-pane-named frame 'status) :force-p t)))
             (t
              (let* ((num (ignore-errors (parse-integer input)))
                     (entry (when num (cdr (assoc num choices)))))
@@ -188,10 +208,18 @@
                  ((eq (car entry) :dir)
                   (setf dir (cdr entry)))
                  ((eq (car entry) :file)
-                  (let ((track (make-track-from-file (namestring (cdr entry)))))
-                    (add-playlist-element playlist track)
-                    (setf (frame-message frame)
-                          (format nil "Added: ~A" (file-namestring (cdr entry)))))))))))))))
+                  (handler-case
+                      (let ((track (make-track-from-file (namestring (cdr entry)))))
+                        (setf (add-playlist-element playlist 0) track)
+                        (setf (frame-message frame)
+                              (format nil "Added: ~A" (file-namestring (cdr entry))))
+                        (format stream "  Added: ~A~%" (file-namestring (cdr entry)))
+                        (clim:redisplay-frame-pane frame (clim:find-pane-named frame 'tracklist) :force-p t)
+                        (clim:redisplay-frame-pane frame (clim:find-pane-named frame 'status) :force-p t))
+                    (error (e)
+                      (format stream "  Error adding file: ~A~%" e)))))))))))
+    (clim:window-clear stream)
+    (clim:redisplay-frame-panes frame :force-p t)))
 
 (clim:define-command (com-quit :command-table playlisp-commands
                                :name "Quit"
