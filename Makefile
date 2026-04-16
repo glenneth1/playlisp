@@ -1,25 +1,55 @@
-ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-PACKAGE=playlisp
-PACKAGEUTILS=playlisp.app-utils
-OUT=playlisp
-ENTRY=-main
+## playlisp - M3U playlist editor
+## McCLIM loads many font files; raise fd limit
+SBCL := ulimit -n 8192 && sbcl --dynamic-space-size 4096
 
-$(OUT): buildapp *.lisp quicklisp-manifest.txt
-	./buildapp  --manifest-file quicklisp-manifest.txt \
-				--load-system asdf \
-				--eval '(push "$(ROOT_DIR)/" asdf:*central-registry*)' \
-				--load-system $(PACKAGE) \
-				--eval '($(PACKAGEUTILS)::internal-disable-debugger)' \
-				--output $(OUT) --entry $(PACKAGE):$(ENTRY)
+.PHONY: all gui tui build run-gui run-tui test repl clean help
 
-quicklisp-manifest.txt: *.asd
+help:
+	@echo "playlisp build targets:"
+	@echo "  make build    - Build combined binary (GUI + TUI)"
+	@echo "  make gui      - Load and launch GUI interactively"
+	@echo "  make tui      - Load and launch TUI interactively"
+	@echo "  make test     - Run test suite"
+	@echo "  make repl     - Load playlisp into REPL"
+	@echo "  make clean    - Remove build artifacts"
+
+## Build standalone binary with both GUI and TUI
+build:
+	$(SBCL) --non-interactive --load build.lisp
+
+## Interactive launch (no binary needed)
+## Usage: make gui [FILE=playlist.m3u]
+gui:
+ifdef FILE
+	$(SBCL) --eval '(ql:quickload :playlisp/gui)' \
+	        --eval '(playlisp-gui:run :filepath "$(FILE)" :new-process nil)'
+else
+	$(SBCL) --eval '(ql:quickload :playlisp/gui)' \
+	        --eval '(playlisp-gui:run :new-process nil)'
+endif
+
+tui:
+	$(SBCL) --eval '(ql:quickload :playlisp/mcclim)' \
+	        --eval '(playlisp/src/mcclim-app:run)'
+
+## Run the built binary
+run-gui: build
+	ulimit -n 8192 && ./bin/playlisp -G
+
+run-tui: build
+	./bin/playlisp -T
+
+## Tests
+test:
 	sbcl --non-interactive \
-		--eval '(push #P"$(ROOT_DIR)/" asdf:*central-registry*)'\
-		--eval '(ql:quickload "$(PACKAGE)")'\
-		--eval '(ql:write-asdf-manifest-file "quicklisp-manifest.txt")'
+	     --eval '(ql:quickload :playlisp/tests)' \
+	     --eval '(asdf:test-system :playlisp)'
 
-buildapp:
-	sbcl --eval '(ql:quickload "buildapp")' --eval '(buildapp:build-buildapp)' --non-interactive
+## Development REPL
+repl:
+	$(SBCL) --eval '(ql:quickload :playlisp/gui)' \
+	        --eval '(in-package :playlisp-gui)'
 
+## Clean
 clean:
-	rm -f *.fasl $(OUT) buildapp quicklisp-manifest.txt
+	rm -rf bin/playlisp *.fasl

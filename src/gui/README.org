@@ -1,0 +1,146 @@
+#+TITLE: Playlisp GUI
+#+AUTHOR: Glenn
+#+DESCRIPTION: McCLIM graphical interface for the Playlisp M3U playlist editor
+
+* Overview
+
+The Playlisp GUI is a graphical frontend for the Playlisp M3U playlist
+editor, built with [[https://mcclim.common-lisp.dev/][McCLIM]]. It provides a windowed interface with
+menu-driven commands, keyboard shortcuts, drag-and-drop track
+reordering, and an interactive file browser.
+
+* Requirements
+
+- SBCL (Steel Bank Common Lisp)
+- Quicklisp
+- McCLIM (loaded via Quicklisp or local checkout)
+- =ffprobe= (from FFmpeg) for reading audio file durations
+
+* Building and Running
+
+** Interactive Launch (recommended for development)
+
+Launch the GUI directly without building a binary:
+
+#+begin_src shell
+make gui
+#+end_src
+
+To open a playlist on startup:
+
+#+begin_src shell
+make gui FILE=deep-focus.m3u
+#+end_src
+
+** Building a Standalone Binary
+
+Build a combined binary that supports both the GUI and TUI:
+
+#+begin_src shell
+make build
+#+end_src
+
+This creates =bin/playlisp=. Run it with:
+
+#+begin_src shell
+./bin/playlisp -G                    # Launch GUI
+./bin/playlisp -G deep-focus.m3u     # Launch GUI with playlist
+./bin/playlisp -T deep-focus.m3u     # Launch TUI with playlist
+./bin/playlisp deep-focus.m3u        # Defaults to GUI
+#+end_src
+
+** Other Make Targets
+
+| Target     | Description                            |
+|------------+----------------------------------------|
+| =make gui= | Load and launch the GUI interactively  |
+| =make tui= | Load and launch the TUI interactively  |
+| =make build= | Build the combined standalone binary |
+| =make help= | Show all available targets             |
+| =make clean= | Remove build artifacts                |
+
+* Interface Layout
+
+The GUI window is divided into four panes:
+
+- *Status bar* (top) -- shows playlist name, track count, total duration, and messages
+- *Tracklist* (left) -- scrollable list of tracks with index, title, artist, and duration
+- *Details* (right) -- displays full details for the selected track (title, artist, duration, file path)
+- *Interactor* (bottom) -- command input area, also used by the file browser
+
+* Menu Commands
+
+** File Menu
+
+| Command        | Shortcut | Description                                            |
+|----------------+----------+--------------------------------------------------------|
+| New Playlist   | =C-n=    | Create a new empty playlist                            |
+| Open           | =C-o=    | Open an M3U playlist file (prompts in interactor)      |
+| Save           | =C-s=    | Save the current playlist to its file                  |
+| Save As        |          | Save the current playlist to a new file path           |
+| Add Tracks     | =C-a=    | Add a single audio file or all files in a directory    |
+| Browse & Add   | =C-b=    | Open the interactive file browser (see below)          |
+| Quit           | =C-q=    | Exit the application                                   |
+
+** Edit Menu
+
+| Command      | Shortcut       | Description                                     |
+|--------------+----------------+-------------------------------------------------|
+| Edit Mode    | =C-e=          | Toggle edit mode on/off                         |
+| Move Up      | =C-Up=         | Move the selected track up one position         |
+| Move Down    | =C-Down=       | Move the selected track down one position       |
+| Delete Track | =Delete=       | Remove the selected track from the playlist     |
+
+* Navigation (Keyboard)
+
+These commands are not in the menus but are available via keyboard:
+
+| Key      | Description                     |
+|----------+---------------------------------|
+| =Up=     | Move selection to previous track |
+| =Down=   | Move selection to next track     |
+| =Home=   | Jump to first track              |
+| =End=    | Jump to last track               |
+
+Clicking a track in the tracklist selects it.
+
+* Drag and Drop
+
+Tracks can be reordered by dragging one track and dropping it onto
+another. The track is moved from its original position to the drop
+target position. A status message confirms the move.
+
+* File Browser (Browse & Add)
+
+The file browser runs in the interactor pane. It lists subdirectories
+and audio files in the current directory. Usage:
+
+| Input    | Action                                          |
+|----------+-------------------------------------------------|
+| /number/ | Navigate into a directory or add a single file  |
+| =..=     | Go to the parent directory                      |
+| =a=      | Add all audio files in the current directory     |
+| =q=      | Quit the browser                                |
+
+The browser starts in the directory of the currently loaded playlist,
+or =~/Music/= if no playlist is loaded. Recognized audio formats:
+mp3, flac, ogg, opus, m4a, wav, aac, wma.
+
+* Source Files
+
+| File               | Purpose                                    |
+|--------------------+--------------------------------------------|
+| =package.lisp=     | Package definition and imports             |
+| =presentations.lisp= | CLIM presentation types                 |
+| =display.lisp=     | Display functions for all panes            |
+| =frame.lisp=       | Application frame, panes, and layout       |
+| =commands.lisp=    | All commands, menus, and drag-and-drop     |
+| =main.lisp=        | Entry points (run, main)                   |
+
+* Notes
+
+- McCLIM loads many TrueType fonts at startup. The GUI restricts the
+  font search path to avoid excessive memory use and slow startup.
+- The =Makefile= raises the file descriptor limit (=ulimit -n 8192=)
+  and allocates 4 GB dynamic space for SBCL to handle McCLIM's
+  requirements.

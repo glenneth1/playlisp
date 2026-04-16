@@ -44,3 +44,22 @@
                #:mcclim-charmed)
   :components ((:module "src"
                 :components ((:file "mcclim-app")))))
+
+;;; McCLIM GUI (standard X11/CLX graphical interface)
+(asdf:defsystem #:playlisp/gui
+  :description "McCLIM graphical playlist editor for playlisp"
+  :author "Glenn Thompson"
+  :license "GNU AFFERO GENERAL PUBLIC LICENSE V.3"
+  :version "0.1.0"
+  :depends-on (#:mcclim
+               #:playlisp/parser
+               #:playlisp/m3u-operations)
+  :serial t
+  :components ((:module "src/gui"
+                :serial t
+                :components ((:file "package")
+                             (:file "presentations")
+                             (:file "display")
+                             (:file "commands")
+                             (:file "frame")
+                             (:file "main")))))
