@@ -25,7 +25,10 @@
    (filepath :initform nil :accessor frame-filepath)
    (selected-index :initform 0 :accessor frame-selected-index)
    (message :initform nil :accessor frame-message)
-   (edit-mode-p :initform nil :accessor frame-edit-mode-p))
+   (edit-mode-p :initform nil :accessor frame-edit-mode-p)
+   (browse-lines :initform nil :accessor frame-browse-lines)
+   (preview-process :initform nil :accessor frame-preview-process)
+   (preview-label :initform nil :accessor frame-preview-label))
   (:panes
    (tracklist :application
               :display-function 'display-tracklist
@@ -48,15 +51,17 @@
            :min-height 22
            :text-style (clim:make-text-style :fix :roman :small))
    (interactor :interactor
-               :text-style (clim:make-text-style :fix :roman :small)))
+               :text-style (clim:make-text-style :fix :roman :small)
+               :max-height 48
+               :min-height 48))
   (:layouts
    (default
      (clim:vertically ()
        status
        (clim:horizontally ()
-         (3/5 (clim:scrolling (:scroll-bars :vertical) tracklist))
-         (2/5 (clim:scrolling (:scroll-bars :vertical) details)))
-       (1/6 interactor))))
+         (2/5 (clim:scrolling (:scroll-bars :vertical) details))
+         (3/5 (clim:scrolling (:scroll-bars :vertical) tracklist)))
+       interactor)))
   (:command-table (playlisp-commands))
   (:menu-bar t))
 

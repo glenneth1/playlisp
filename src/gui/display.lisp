@@ -141,13 +141,16 @@
 ;;; ---------------------------------------------------------------------------
 
 (defun display-details (frame pane)
-  "Display details for the currently selected track."
-  (let ((track (frame-selected-track frame)))
-    (if (null track)
-        (clim:with-text-face (pane :italic)
-          (clim:with-drawing-options (pane :ink *dim-fg*)
-            (format pane "~%  Select a track to view details.~%")))
-        (display-track-detail pane track))))
+  "Display details for the currently selected track, or browse listing if active."
+  (let ((browse-lines (frame-browse-lines frame)))
+    (if browse-lines
+        (display-browser-content pane browse-lines)
+        (let ((track (frame-selected-track frame)))
+          (if (null track)
+              (clim:with-text-face (pane :italic)
+                (clim:with-drawing-options (pane :ink *dim-fg*)
+                  (format pane "~%  Select a track to view details.~%")))
+              (display-track-detail pane track))))))
 
 (defun display-track-detail (pane track)
   "Render full details for a single track."
@@ -175,6 +178,44 @@
     (clim:with-drawing-options (pane :ink *detail-label-fg*)
       (format pane "  ~12A" label))
     (format pane " ~A~%" value)))
+
+;;; ---------------------------------------------------------------------------
+;;; Browser pane display
+;;; ---------------------------------------------------------------------------
+
+(defparameter *browse-dir-fg* (clim:make-rgb-color 0.1 0.2 0.7)
+  "Foreground color for directory entries in the browser pane.")
+
+(defparameter *browse-file-fg* (clim:make-rgb-color 0.1 0.1 0.15)
+  "Foreground color for file entries in the browser pane.")
+
+(defparameter *browse-action-fg* (clim:make-rgb-color 0.7 0.4 0.0)
+  "Foreground color for action entries (a/s/q) in the browser pane.")
+
+(defun display-browser-content (pane lines)
+  "Render browse directory listing from a list of (text . kind) pairs."
+  (dolist (line lines)
+    (let ((text (car line))
+          (kind (cdr line)))
+      (ecase kind
+        (:header
+         (clim:with-text-face (pane :bold)
+           (format pane "~A~%" text)))
+        (:separator
+         (clim:with-drawing-options (pane :ink *dim-fg*)
+           (format pane "~A~%" text)))
+        (:dir
+         (clim:with-drawing-options (pane :ink *browse-dir-fg*)
+           (format pane "~A~%" text)))
+        (:file
+         (clim:with-drawing-options (pane :ink *browse-file-fg*)
+           (format pane "~A~%" text)))
+        (:action
+         (clim:with-drawing-options (pane :ink *browse-action-fg*)
+           (format pane "~A~%" text)))
+        (:info
+         (clim:with-drawing-options (pane :ink *dim-fg*)
+           (format pane "~A~%" text)))))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Status bar display
